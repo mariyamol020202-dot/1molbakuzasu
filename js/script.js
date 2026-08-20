@@ -1,6 +1,6 @@
 /* =========================================================
-   BUILD: 2026-08-20 LATEST-CLOUD-3
-   В ЭТОЙ ВЕРСИИ: +новости, +альбомы, +фото, +меловая доска В НОВОСТЯХ, имя+PIN
+   BUILD: 2026-08-20 FAMILY-CLOUD-4
+   В ЭТОЙ ВЕРСИИ: новости с фото и комментариями, общие альбомы, меловая доска на 3 дня, имя+PIN
    МОЛБАКУЗАСУ — основной скрипт сайта
    Статика GitHub Pages + живые новости/медиатека/доска Supabase
    ========================================================= */
@@ -64,11 +64,17 @@ function todayInputValue() {
   return local.toISOString().slice(0, 10);
 }
 
+function normalizeFamilyName(value) {
+  const clean = String(value || '').trim().replace(/\s+/g, ' ');
+  if (!clean) return '';
+  return clean.charAt(0).toLocaleUpperCase('ru-RU') + clean.slice(1);
+}
+
 function ensureCloudStyles() {
   if (document.querySelector('link[data-family-cloud-style]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = 'css/family-cloud.css?v=20260820-2';
+  link.href = 'css/family-cloud.css?v=20260820-4';
   link.dataset.familyCloudStyle = '1';
   document.head.appendChild(link);
 }
@@ -247,6 +253,11 @@ function renderEventPage() {
 
   const id = new URLSearchParams(location.search).get('id');
   const events = (window.FAMILY_CONTENT || {}).events || [];
+  if (looksLikeUuid(id)) {
+    root.innerHTML = '<div class="cloud-gallery-loading">Открываем семейную новость…</div>';
+    return;
+  }
+
   const item = events.find((event) => event.id === id);
 
   if (!item) {
@@ -549,6 +560,7 @@ async function initCloud() {
 
     await Promise.allSettled([
       renderCloudNews(),
+      renderCloudNewsDetail(),
       renderCloudGallery(),
       renderCloudAlbum(),
       renderFamilyBoard()
@@ -639,7 +651,8 @@ function requireFamilyAccess() {
         return;
       }
 
-      const name = form.elements.name.value.trim();
+      const name = normalizeFamilyName(form.elements.name.value);
+      form.elements.name.value = name;
       const pin = form.elements.pin.value.trim();
       if (!name || !/^\d{4}$/.test(pin)) {
         status.textContent = 'Введите имя и 4 цифры семейного кода.';
@@ -778,10 +791,11 @@ function ensureNewsModal() {
       <p class="eyebrow">НОВАЯ СЕМЕЙНАЯ НОВОСТЬ</p>
       <h2>Что произошло?</h2>
       <form id="familyNewsForm" class="cloud-form">
-        <label>Заголовок<input name="title" maxlength="120" required placeholder="Например, Мы наконец-то собрались все вместе"></label>
+        <label>Заголовок<input name="title" maxlength="120" required placeholder="Например, Мы купили кошечку"></label>
         <label>Дата<input name="event_date" type="date"></label>
         <label>Текст<textarea name="body" maxlength="2000" placeholder="Пара слов об этом событии…"></textarea></label>
-        <label>Фотография<input name="image" type="file" accept="image/*"></label>
+        <label>Фотографии<input name="images" type="file" accept="image/*" multiple></label>
+        <p class="cloud-small-note">Можно выбрать сразу несколько фотографий. Потом к этой новости можно будет добавить ещё.</p>
         <button class="cloud-primary-button" type="submit">Опубликовать →</button>
         <div class="cloud-form-status" aria-live="polite"></div>
       </form>
@@ -808,28 +822,28 @@ function openNewsModal() {
     button.disabled = true;
     status.textContent = 'Публикуем…';
 
-    let uploadedPath = '';
     try {
-      const file = form.elements.image.files?.[0] || null;
-      if (file) {
-        uploadedPath = await uploadOneFile(file, `news/${familyState.user.id}`);
-      }
-
-      const { error } = await supabaseClient.from('family_news').insert({
-        author_id: familyState.user.id,
-        author_name: familyState.name,
-        title: form.elements.title.value.trim(),
-        body: form.elements.body.value.trim(),
-        event_date: form.elements.event_date.value || null,
-        image_path: uploadedPath || null
-      });
+      const { data: news, error } = await supabaseClient
+        .from('family_news')
+        .insert({
+          author_id: familyState.user.id,
+          author_name: familyState.name,
+          title: form.elements.title.value.trim(),
+          body: form.elements.body.value.trim(),
+          event_date: form.elements.event_date.value || null,
+          image_path: null
+        })
+        .select('*')
+        .single();
       if (error) throw error;
 
+      const files = [...(form.elements.images.files || [])];
+      if (files.length) await uploadPhotosToNews(news.id, files, status);
+
       closeModal(modal);
-      await renderCloudNews();
+      location.href = `event.html?id=${encodeURIComponent(news.id)}`;
     } catch (error) {
       console.error(error);
-      if (uploadedPath) await supabaseClient.storage.from(CLOUD_CONFIG.bucket).remove([uploadedPath]);
       status.textContent = 'Не получилось опубликовать. Попробуйте ещё раз.';
     } finally {
       button.disabled = false;
@@ -877,6 +891,7 @@ async function renderCloudNews() {
       <p class="news-type">ОТ ${escapeHtml(item.author_name || 'СЕМЬИ')}</p>
       <h3>${escapeHtml(item.title)}</h3>
       <p>${escapeHtml(item.body || '')}</p>
+      <a class="cloud-news-open" href="event.html?id=${encodeURIComponent(item.id)}">Открыть новость, фото и комментарии →</a>
       ${canDelete ? `<button class="cloud-text-button cloud-delete-news" type="button" data-news-id="${escapeHtml(item.id)}" data-image-path="${escapeHtml(item.image_path || '')}">Удалить мою новость</button>` : ''}`;
     card.appendChild(copy);
     grid.insertBefore(card, grid.firstChild);
@@ -887,11 +902,215 @@ async function renderCloudNews() {
       if (!confirm('Удалить эту новость?')) return;
       const id = button.dataset.newsId;
       const imagePath = button.dataset.imagePath;
+      const { data: extraPhotos } = await supabaseClient.from('family_news_photos').select('storage_path').eq('news_id', id);
       const { error } = await supabaseClient.from('family_news').delete().eq('id', id);
       if (error) return alert('Не получилось удалить новость.');
-      if (imagePath) await supabaseClient.storage.from(CLOUD_CONFIG.bucket).remove([imagePath]);
+      const paths = [...new Set([imagePath, ...(extraPhotos || []).map((p) => p.storage_path)].filter(Boolean))];
+      if (paths.length) await supabaseClient.storage.from(CLOUD_CONFIG.bucket).remove(paths);
       await renderCloudNews();
     });
+  });
+}
+
+async function uploadPhotosToNews(newsId, files, statusEl) {
+  if (!familyState.user || !familyState.isMember) throw new Error('not member');
+
+  const [{ count }, { data: news }] = await Promise.all([
+    supabaseClient.from('family_news_photos').select('*', { count: 'exact', head: true }).eq('news_id', newsId),
+    supabaseClient.from('family_news').select('image_path').eq('id', newsId).maybeSingle()
+  ]);
+  let order = Number(count) || 0;
+  let coverPath = news?.image_path || '';
+
+  for (let i = 0; i < files.length; i += 1) {
+    if (statusEl) statusEl.textContent = `Загружаем фото ${i + 1} из ${files.length}…`;
+    const file = files[i];
+    const path = await uploadOneFile(file, `news/${newsId}/${familyState.user.id}`);
+    const { error } = await supabaseClient.from('family_news_photos').insert({
+      news_id: newsId,
+      uploader_id: familyState.user.id,
+      uploader_name: familyState.name,
+      storage_path: path,
+      original_name: file.name,
+      sort_order: order
+    });
+    if (error) {
+      await supabaseClient.storage.from(CLOUD_CONFIG.bucket).remove([path]);
+      throw error;
+    }
+    if (!coverPath) coverPath = path;
+    order += 1;
+  }
+
+  if (coverPath && !news?.image_path) {
+    await supabaseClient.from('family_news').update({ image_path: coverPath }).eq('id', newsId);
+  }
+  if (statusEl) statusEl.textContent = `Готово: ${files.length} фото добавлено.`;
+}
+
+async function renderCloudNewsDetail() {
+  const root = document.querySelector('#eventDetail');
+  if (!root || !supabaseClient) return;
+  const id = new URLSearchParams(location.search).get('id');
+  if (!looksLikeUuid(id)) return;
+
+  const { data: item, error } = await supabaseClient.from('family_news').select('*').eq('id', id).maybeSingle();
+  if (error || !item) {
+    root.innerHTML = '<p>Новость не найдена.</p>';
+    return;
+  }
+
+  document.title = `${item.title} — МолБаКуЗаСу`;
+  root.innerHTML = `
+    <a class="back" href="news.html">← Ко всем семейным новостям</a>
+    <p class="eyebrow">СЕМЕЙНАЯ НОВОСТЬ · ${escapeHtml(formatDateRu(item.event_date) || '')}</p>
+    <h1 class="detail-title">${escapeHtml(item.title)}</h1>
+    <p class="cloud-news-byline">Опубликовал(а) ${escapeHtml(item.author_name || 'кто-то из наших')}</p>
+    <p class="detail-lead">${escapeHtml(item.body || '')}</p>
+    <div class="cloud-detail-actions">
+      <button class="cloud-add-button" id="addPhotosToNews" type="button">＋ Добавить фотографии</button>
+      <span class="cloud-upload-status" id="newsUploadStatus"></span>
+    </div>
+    <div class="photo-grid cloud-news-photo-grid" id="newsPhotos"></div>
+    <section class="cloud-comments-section">
+      <div class="cloud-comments-head"><div><p class="eyebrow">КОММЕНТАРИИ</p><h2>Что скажут наши?</h2></div></div>
+      <form class="cloud-comment-form" id="newsCommentForm">
+        <textarea name="body" maxlength="1000" required placeholder="Написать комментарий…"></textarea>
+        <button class="cloud-primary-button" type="submit">Отправить →</button>
+      </form>
+      <div class="cloud-form-status" id="newsCommentStatus"></div>
+      <div class="cloud-comments-list" id="newsComments"></div>
+    </section>`;
+
+  root.querySelector('#addPhotosToNews').addEventListener('click', async () => {
+    if (!(await requireFamilyAccess())) return;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.multiple = true;
+    input.addEventListener('change', async () => {
+      const files = [...(input.files || [])];
+      if (!files.length) return;
+      const status = root.querySelector('#newsUploadStatus');
+      try {
+        await uploadPhotosToNews(item.id, files, status);
+        await renderCloudNewsPhotos(item, root.querySelector('#newsPhotos'));
+      } catch (uploadError) {
+        console.error(uploadError);
+        status.textContent = 'Не все фотографии удалось загрузить.';
+      }
+    }, { once: true });
+    input.click();
+  });
+
+  const commentForm = root.querySelector('#newsCommentForm');
+  commentForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!(await requireFamilyAccess())) return;
+    const status = root.querySelector('#newsCommentStatus');
+    const body = commentForm.elements.body.value.trim();
+    if (!body) return;
+    status.textContent = 'Отправляем…';
+    const { error: commentError } = await supabaseClient.from('family_news_comments').insert({
+      news_id: item.id,
+      author_id: familyState.user.id,
+      author_name: familyState.name,
+      body
+    });
+    if (commentError) {
+      status.textContent = 'Не получилось отправить комментарий.';
+      return;
+    }
+    commentForm.reset();
+    status.textContent = '';
+    await renderNewsComments(item.id, root.querySelector('#newsComments'));
+  });
+
+  await Promise.all([
+    renderCloudNewsPhotos(item, root.querySelector('#newsPhotos')),
+    renderNewsComments(item.id, root.querySelector('#newsComments'))
+  ]);
+}
+
+async function renderCloudNewsPhotos(item, container) {
+  const { data: photos, error } = await supabaseClient
+    .from('family_news_photos')
+    .select('*')
+    .eq('news_id', item.id)
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    container.innerHTML = '<div class="empty-state">Не получилось загрузить фотографии.</div>';
+    return;
+  }
+
+  const rows = photos || [];
+  const seen = new Set();
+  const lightbox = [];
+  if (item.image_path) {
+    seen.add(item.image_path);
+    lightbox.push({ url: publicMediaUrl(item.image_path), name: item.title });
+  }
+  rows.forEach((photo) => {
+    if (seen.has(photo.storage_path)) return;
+    seen.add(photo.storage_path);
+    lightbox.push({ url: publicMediaUrl(photo.storage_path), name: photo.original_name || item.title });
+  });
+
+  if (!lightbox.length) {
+    container.innerHTML = '<div class="empty-state">Фотографий пока нет. Любой из семьи может добавить первые.</div>';
+    return;
+  }
+
+  container.innerHTML = '';
+  lightbox.forEach((photo, index) => {
+    const figure = document.createElement('figure');
+    figure.className = 'photo-tile cloud-clickable-photo';
+    const img = document.createElement('img');
+    img.src = photo.url;
+    img.alt = `${item.title} — фото ${index + 1}`;
+    img.decoding = 'async';
+    img.loading = index < 4 ? 'eager' : 'lazy';
+    figure.appendChild(img);
+    figure.addEventListener('click', () => openLightbox(lightbox, index));
+    container.appendChild(figure);
+  });
+}
+
+async function renderNewsComments(newsId, container) {
+  const { data: comments, error } = await supabaseClient
+    .from('family_news_comments')
+    .select('*')
+    .eq('news_id', newsId)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    container.innerHTML = '<div class="cloud-muted">Комментарии сейчас не загрузились.</div>';
+    return;
+  }
+  if (!comments?.length) {
+    container.innerHTML = '<div class="cloud-muted">Пока никто не прокомментировал.</div>';
+    return;
+  }
+
+  container.innerHTML = '';
+  comments.forEach((comment) => {
+    const item = document.createElement('article');
+    item.className = 'cloud-comment';
+    const mine = familyState.user?.id === comment.author_id;
+    item.innerHTML = `
+      <div class="cloud-comment-meta"><strong>${escapeHtml(comment.author_name || 'Кто-то из наших')}</strong><span>${escapeHtml(new Date(comment.created_at).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</span></div>
+      <p>${escapeHtml(comment.body)}</p>
+      ${mine ? `<button class="cloud-text-button cloud-delete-comment" type="button">Удалить мой комментарий</button>` : ''}`;
+    if (mine) {
+      item.querySelector('.cloud-delete-comment').addEventListener('click', async () => {
+        if (!confirm('Удалить комментарий?')) return;
+        const { error: deleteError } = await supabaseClient.from('family_news_comments').delete().eq('id', comment.id);
+        if (!deleteError) await renderNewsComments(newsId, container);
+      });
+    }
+    container.appendChild(item);
   });
 }
 
@@ -974,7 +1193,7 @@ async function renderCloudGallery() {
   grid.querySelectorAll('.cloud-album-card').forEach((el) => el.remove());
 
   const [{ data: albums, error: albumsError }, { data: photos, error: photosError }] = await Promise.all([
-    supabaseClient.from('media_albums').select('*').order('created_at', { ascending: false }),
+    supabaseClient.from('media_albums').select('*').is('legacy_key', null).order('created_at', { ascending: false }),
     supabaseClient.from('media_photos').select('*').order('sort_order', { ascending: true }).order('created_at', { ascending: true })
   ]);
 
@@ -1021,7 +1240,11 @@ async function renderCloudAlbum() {
   const root = document.querySelector('#albumDetail');
   if (!root || !supabaseClient) return;
   const id = new URLSearchParams(location.search).get('id');
-  if (!looksLikeUuid(id)) return;
+
+  if (!looksLikeUuid(id)) {
+    await renderLegacyAlbumCloudExtras(id);
+    return;
+  }
 
   const { data: album, error } = await supabaseClient
     .from('media_albums')
@@ -1047,26 +1270,91 @@ async function renderCloudAlbum() {
 
   root.querySelector('#addPhotosToAlbum').addEventListener('click', async () => {
     if (!(await requireFamilyAccess())) return;
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.multiple = true;
-    input.addEventListener('change', async () => {
-      const files = [...(input.files || [])];
-      if (!files.length) return;
-      const status = root.querySelector('#albumUploadStatus');
-      try {
-        await uploadPhotosToAlbum(album.id, files, status);
-        await renderCloudAlbum();
-      } catch (error) {
-        console.error(error);
-        status.textContent = 'Не все фотографии удалось загрузить.';
-      }
-    }, { once: true });
-    input.click();
+    await chooseAndUploadAlbumPhotos(album.id, root.querySelector('#albumUploadStatus'), async () => {
+      await renderCloudAlbumPhotos(album.id, root.querySelector('#albumPhotos'), album.title);
+    });
   });
 
   await renderCloudAlbumPhotos(album.id, root.querySelector('#albumPhotos'), album.title);
+}
+
+async function chooseAndUploadAlbumPhotos(albumId, status, done) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.multiple = true;
+  input.addEventListener('change', async () => {
+    const files = [...(input.files || [])];
+    if (!files.length) return;
+    try {
+      await uploadPhotosToAlbum(albumId, files, status);
+      if (done) await done();
+    } catch (error) {
+      console.error(error);
+      status.textContent = 'Не все фотографии удалось загрузить.';
+    }
+  }, { once: true });
+  input.click();
+}
+
+async function renderLegacyAlbumCloudExtras(legacyId) {
+  const root = document.querySelector('#albumDetail');
+  const legacy = ((window.FAMILY_CONTENT || {}).albums || []).find((item) => item.id === legacyId);
+  if (!root || !legacy) return;
+
+  let extras = root.querySelector('#legacyCloudExtras');
+  if (!extras) {
+    extras = document.createElement('section');
+    extras.id = 'legacyCloudExtras';
+    extras.className = 'legacy-cloud-extras';
+    root.appendChild(extras);
+  }
+
+  let { data: cloudAlbum } = await supabaseClient
+    .from('media_albums')
+    .select('*')
+    .eq('legacy_key', legacyId)
+    .maybeSingle();
+
+  extras.innerHTML = `
+    <div class="cloud-album-heading legacy-add-heading">
+      <div><p class="eyebrow">ДОБАВИТЬ ИЗ СЕМЕЙНОГО ОБЛАКА</p><h2>Есть ещё фотографии?</h2></div>
+      <button class="cloud-add-button" id="addPhotosToLegacyAlbum" type="button">＋ Добавить фотографии</button>
+    </div>
+    <div class="cloud-upload-status" id="legacyAlbumUploadStatus"></div>
+    <div class="photo-grid" id="legacyCloudPhotos"></div>`;
+
+  const cloudGrid = extras.querySelector('#legacyCloudPhotos');
+  if (cloudAlbum) await renderCloudAlbumPhotos(cloudAlbum.id, cloudGrid, legacy.title);
+  else cloudGrid.innerHTML = '<div class="cloud-muted">Дополнительных фотографий из семейного облака пока нет.</div>';
+
+  extras.querySelector('#addPhotosToLegacyAlbum').addEventListener('click', async () => {
+    if (!(await requireFamilyAccess())) return;
+    const status = extras.querySelector('#legacyAlbumUploadStatus');
+
+    if (!cloudAlbum) {
+      const { data: created, error } = await supabaseClient
+        .from('media_albums')
+        .insert({
+          author_id: familyState.user.id,
+          author_name: familyState.name,
+          title: legacy.title,
+          description: legacy.subtitle || '',
+          legacy_key: legacyId
+        })
+        .select('*')
+        .single();
+      if (error) {
+        status.textContent = 'Не получилось подготовить альбом для загрузки.';
+        return;
+      }
+      cloudAlbum = created;
+    }
+
+    await chooseAndUploadAlbumPhotos(cloudAlbum.id, status, async () => {
+      await renderCloudAlbumPhotos(cloudAlbum.id, cloudGrid, legacy.title);
+    });
+  });
 }
 
 async function renderCloudAlbumPhotos(albumId, container, albumTitle) {
@@ -1185,7 +1473,7 @@ function ensureFamilyBoardSection() {
   section.innerHTML = `
     <div class="family-board-head">
       <div><p class="eyebrow">FAMILY BOARD</p><h2>Семейная<br>доска.</h2></div>
-      <div class="family-board-actions"><p>Быстрая новость, напоминание, шутка или просто мысль — оставьте её мелом.</p><button class="cloud-add-button light" id="addFamilyNote" type="button">＋ Написать мелом</button></div>
+      <div class="family-board-actions"><p>Шутка, напоминание или мысль на ходу. Записки сами стираются через 3 дня.</p><button class="cloud-add-button light" id="addFamilyNote" type="button">＋ Написать мелом</button></div>
     </div>
     <div class="chalkboard"><div class="chalk-notes" id="familyNotesGrid"><div class="chalk-loading">Загружаем записки…</div></div></div>`;
 
@@ -1211,8 +1499,9 @@ function ensureNoteModal() {
       <button class="cloud-modal-close" type="button" aria-label="Закрыть">×</button>
       <p class="eyebrow">СЕМЕЙНАЯ ДОСКА</p>
       <h2>Что написать мелом?</h2>
+      <p class="cloud-modal-lead">Записка пробудет на доске 3 дня, а потом исчезнет сама.</p>
       <form id="familyNoteForm" class="cloud-form">
-        <label>Записка<textarea name="body" maxlength="1000" required placeholder="Например, 30 августа все к бабушке! Не опаздывать :) "></textarea></label>
+        <label>Записка<textarea name="body" maxlength="500" required placeholder="Например, в субботу все к бабушке! :) "></textarea></label>
         <button class="cloud-primary-button" type="submit">Написать мелом →</button>
         <div class="cloud-form-status" aria-live="polite"></div>
       </form>
@@ -1255,10 +1544,29 @@ function openNoteModal() {
   };
 }
 
-function tiltFromId(id) {
-  let sum = 0;
-  for (const char of String(id)) sum += char.charCodeAt(0);
-  return ((sum % 7) - 3) * 0.45;
+function chalkHash(id) {
+  let value = 0;
+  for (const char of String(id)) value = ((value << 5) - value + char.charCodeAt(0)) | 0;
+  return Math.abs(value);
+}
+
+function chalkStyleFromId(id, index) {
+  const hash = chalkHash(id);
+  const slots = [
+    [3, 5], [36, 2], [67, 7],
+    [8, 37], [41, 31], [69, 39],
+    [2, 69], [35, 66], [66, 70],
+    [18, 17], [54, 18], [22, 54]
+  ];
+  const colors = ['#f8f3df', '#f6d6df', '#d7e8ff', '#e7f2bd', '#ffe0aa', '#e6d8ff'];
+  const slot = slots[(hash + index) % slots.length];
+  return {
+    x: slot[0],
+    y: slot[1],
+    tilt: ((hash % 13) - 6) * 1.15,
+    color: colors[hash % colors.length],
+    scale: 0.88 + ((hash >> 4) % 17) / 100
+  };
 }
 
 async function renderFamilyBoard() {
@@ -1266,9 +1574,14 @@ async function renderFamilyBoard() {
   if (!section || !supabaseClient) return;
   const grid = section.querySelector('#familyNotesGrid');
 
+  /* Реально удаляем старые записи в БД; фильтр ниже — дополнительная страховка. */
+  try { await supabaseClient.rpc('purge_old_family_notes'); } catch (error) { console.warn('Очистка старых записок:', error); }
+
+  const cutoff = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
   const { data: notes, error } = await supabaseClient
     .from('family_notes')
     .select('*')
+    .gte('created_at', cutoff)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -1282,10 +1595,15 @@ async function renderFamilyBoard() {
   }
 
   grid.innerHTML = '';
-  notes.forEach((note) => {
+  notes.forEach((note, index) => {
     const article = document.createElement('article');
     article.className = 'chalk-note';
-    article.style.setProperty('--tilt', `${tiltFromId(note.id)}deg`);
+    const style = chalkStyleFromId(note.id, index);
+    article.style.setProperty('--x', `${style.x}%`);
+    article.style.setProperty('--y', `${style.y}%`);
+    article.style.setProperty('--tilt', `${style.tilt}deg`);
+    article.style.setProperty('--chalk', style.color);
+    article.style.setProperty('--scale', String(style.scale));
     const canDelete = familyState.user?.id === note.author_id;
     article.innerHTML = `
       ${canDelete ? `<button class="chalk-erase" type="button" title="Стереть мою записку">стереть ×</button>` : ''}
