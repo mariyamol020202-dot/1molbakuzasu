@@ -14,7 +14,7 @@ window.FAMILY_CONTENT = {
       title: "Наша свадьба 💍",
       summary: "Один из тех дней, которые хочется сохранить целиком — вместе с фотографиями, эмоциями и всеми, кто был рядом.",
       folder: "images/events/wedding-2026",
-      maxPhotos: 40
+      maxPhotos: 21
     },
     {
       id: "kot-2026",
@@ -23,7 +23,7 @@ window.FAMILY_CONTENT = {
       title: "Аня, Игорь и кошечка",
       summary: "Семья Барановых завели милую кошечку",
       folder: "images/events/ko",
-      maxPhotos: 40
+      maxPhotos: 3
     }
 
     // НОВОЕ СОБЫТИЕ ДОБАВЛЯЕТСЯ СЮДА.
