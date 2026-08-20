@@ -16,3 +16,68 @@
 
 @media(max-width:800px){.cloud-action-zone{align-items:flex-start;flex-direction:column}.cloud-modal{padding:34px 24px}.cloud-album-heading{align-items:flex-start;flex-direction:column}.family-board-section{padding:70px 5vw 80px}.family-board-head{grid-template-columns:1fr;gap:24px}.family-board-actions{align-items:flex-start;flex-direction:column}.chalkboard{padding:30px 22px}.chalk-notes{grid-template-columns:repeat(2,minmax(0,1fr));gap:26px 18px}.lightbox-stage{width:100vw;height:86vh;padding:0 48px;box-sizing:border-box}.lightbox-nav{width:42px;height:66px;font-size:42px}.lightbox-prev{left:2px}.lightbox-next{right:2px}.lightbox-meta{padding:0 4px;box-sizing:border-box}}
 @media(max-width:520px){.cloud-add-button{width:100%}.cloud-modal-backdrop{padding:12px}.cloud-modal{padding:32px 18px 24px;max-height:92vh}.cloud-modal h2{font-size:38px}.chalk-notes{grid-template-columns:1fr}.chalkboard{border-width:8px;padding:24px 16px}.chalk-note p{font-size:22px}.lightbox-stage{padding:0 36px}.lightbox-download{font-size:11px;padding:9px}.lightbox-image.is-zoomed{transform:scale(1.35)}}
+
+/* ===== FAMILY CLOUD 4: компактные новости, комментарии, общие альбомы ===== */
+.cloud-news-card{min-height:270px!important}
+.cloud-news-card .content-cover{min-height:270px}
+.cloud-news-card .event-card-copy{padding:24px}
+.cloud-news-card .event-card-copy .news-type{margin-top:18px}
+.cloud-news-card .event-card-copy>p:not(.news-type){display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:12px}
+.cloud-news-open{display:inline-block;margin-top:auto;font-size:12px;font-weight:800;border-bottom:1px solid;padding-bottom:3px}
+.cloud-detail-actions{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin:28px 0 22px}
+.cloud-news-byline{font-size:12px;color:#777;margin:-12px 0 28px}
+.cloud-news-photo-grid{margin-bottom:70px}
+
+.cloud-comments-section{margin-top:78px;padding-top:48px;border-top:1px solid var(--line,#d8d3ca)}
+.cloud-comments-head h2,.legacy-add-heading h2{font:600 clamp(34px,4.8vw,58px)/.98 "Playfair Display",Georgia,serif;letter-spacing:-.04em;margin:0}
+.cloud-comment-form{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:stretch;margin:30px 0 12px}
+.cloud-comment-form textarea{min-height:92px;resize:vertical;border:1px solid #b9b3aa;background:#fbf8f2;padding:15px;font:400 15px/1.5 Arial,sans-serif;color:#1c1c19}
+.cloud-comments-list{display:grid;gap:1px;background:var(--line,#d8d3ca);margin-top:28px}
+.cloud-comment{background:var(--bg,#f4f1eb);padding:22px 24px}
+.cloud-comment-meta{display:flex;justify-content:space-between;gap:20px;align-items:center;font-size:11px;color:#777}
+.cloud-comment-meta strong{color:#1c1c19;font-size:12px}
+.cloud-comment p{margin:12px 0 0;line-height:1.55;white-space:pre-wrap}
+
+.legacy-cloud-extras{margin-top:72px;padding-top:52px;border-top:1px solid var(--line,#d8d3ca)}
+.legacy-add-heading{margin-bottom:16px}
+
+/* Доска теперь большая, а записки лежат свободно, как настоящий мел. */
+.family-board-section{padding:72px 5vw 88px}
+.family-board-head{margin-bottom:30px}
+.chalkboard{min-height:560px;padding:24px 26px}
+.chalk-notes{position:relative;display:block;min-height:488px}
+.chalk-note{position:absolute;left:var(--x,4%);top:var(--y,5%);width:min(28%,300px);min-height:0;padding:10px 12px;color:var(--chalk,#f3efe4);transform:rotate(var(--tilt,0deg)) scale(var(--scale,1));transform-origin:center;border:0;text-shadow:0 0 1px currentColor;z-index:1}
+.chalk-note:hover{z-index:4}
+.chalk-note p{font:400 clamp(18px,1.75vw,25px)/1.22 "Comic Sans MS","Bradley Hand",cursive;color:inherit;margin:0;white-space:pre-wrap}
+.chalk-note footer{margin-top:8px;font:400 12px/1.2 "Comic Sans MS","Bradley Hand",cursive;color:inherit;opacity:.72}
+.chalk-erase{right:2px;top:-13px;color:inherit;opacity:.48}
+.chalk-empty,.chalk-loading{position:absolute;inset:0;display:grid;place-items:center;padding:20px}
+
+@media(max-width:1100px){
+  .cloud-news-card{min-height:0!important}
+  .cloud-news-card .content-cover{min-height:0;aspect-ratio:16/9}
+}
+
+@media(max-width:800px){
+  .cloud-comment-form{grid-template-columns:1fr}
+  .cloud-comment-form .cloud-primary-button{width:100%}
+  .chalkboard{min-height:620px;padding:22px 18px}
+  .chalk-notes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-content:start;gap:32px 14px;min-height:550px;padding:18px 2px}
+  .chalk-note{position:relative;left:auto;top:auto;width:auto;min-width:0;padding:8px 8px;transform:rotate(var(--tilt,0deg)) scale(.96)}
+  .chalk-note:nth-child(3n+1){margin-top:20px}.chalk-note:nth-child(3n+2){margin-top:0}.chalk-note:nth-child(3n){margin-top:34px}
+}
+
+@media(max-width:520px){
+  .cloud-news-card .event-card-copy{padding:20px}
+  .cloud-news-card .event-card-copy .news-type{margin-top:14px}
+  .cloud-news-card .event-card-copy>p:not(.news-type){-webkit-line-clamp:2}
+  .cloud-comments-section{margin-top:55px;padding-top:36px}
+  .cloud-comment{padding:18px}
+  .cloud-comment-meta{align-items:flex-start;flex-direction:column;gap:4px}
+  .legacy-cloud-extras{margin-top:50px;padding-top:38px}
+  .family-board-section{padding:55px 5vw 68px}
+  .chalkboard{min-height:690px;border-width:8px;padding:18px 12px}
+  .chalk-notes{grid-template-columns:repeat(2,minmax(0,1fr));gap:36px 6px;min-height:630px}
+  .chalk-note p{font-size:18px}
+  .chalk-note footer{font-size:10px}
+}
