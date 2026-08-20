@@ -21,7 +21,7 @@ window.FAMILY_CONTENT = {
       date: "25 июля 2026",
       type: "СЕМЕЙНОЕ СОБЫТИЕ",
       title: "Аня, Игорь и кошечка",
-      summary: "Семья Барановых заели милую кошечку",
+      summary: "Семья Барановых завели милую кошечку",
       folder: "images/events/ko",
       maxPhotos: 40
     }
