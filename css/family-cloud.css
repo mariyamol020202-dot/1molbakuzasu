@@ -81,3 +81,71 @@
   .chalk-note p{font-size:18px}
   .chalk-note footer{font-size:10px}
 }
+
+/* ===== FAMILY CLOUD 5 ===== */
+
+/* Карточка облачной новости целиком кликабельна и компактнее. */
+.cloud-news-card{min-height:220px!important;height:auto!important;cursor:pointer;transition:transform .16s ease,box-shadow .16s ease}
+.cloud-news-card:hover{transform:translateY(-2px)}
+.cloud-news-card:focus{outline:2px solid currentColor;outline-offset:3px}
+.cloud-news-card .content-cover{min-height:220px!important}
+.cloud-news-card .event-card-copy{padding:21px 23px!important;min-height:0!important}
+.cloud-news-card .event-card-copy .news-type{margin-top:13px!important}
+.cloud-news-card .event-card-copy>p:not(.news-type){-webkit-line-clamp:2!important;margin-bottom:8px!important}
+.cloud-news-card h3{margin:10px 0 8px!important;font-size:31px}
+.cloud-news-open{margin-top:10px!important}
+.cloud-admin-delete{color:#8b2d24!important}
+
+/* Добавление фотографий: сначала понятное превью, потом отдельная кнопка загрузки. */
+.cloud-upload-modal{width:min(760px,100%)}
+.cloud-file-picker input[type=file]{padding:14px;background:#fbf8f2}
+.cloud-selected-count{font-size:12px;color:#6e6b65;margin-top:-4px}
+.cloud-upload-preview{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;max-height:300px;overflow:auto}
+.cloud-upload-preview-item{position:relative;aspect-ratio:1/1;background:#ddd6ca;overflow:hidden}
+.cloud-upload-preview-item img{display:block;width:100%;height:100%;object-fit:cover}
+.cloud-upload-preview-item span{position:absolute;left:5px;right:5px;bottom:5px;background:rgba(20,20,18,.7);color:white;padding:4px 5px;font:10px/1.2 Arial,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cloud-upload-preview-more{display:grid;place-items:center;aspect-ratio:1/1;background:#ded8ce;font:700 12px Arial,sans-serif}
+
+/* Старые альбомы и события больше не получают огромный отдельный блок для загрузки. */
+.legacy-cloud-toolbar{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin:18px 0 24px;padding:18px 0;border-top:1px solid var(--line,#d8d3ca);border-bottom:1px solid var(--line,#d8d3ca)}
+.legacy-cloud-photo-grid{margin-top:0;margin-bottom:32px}
+.legacy-news-cloud-extras{margin-top:42px}
+.cloud-album-actions{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+
+/* Доска: каждая записка получает постоянный слот из БД и больше не прыгает. */
+.family-board-section{padding:72px 4.5vw 92px!important}
+.family-board-head{margin-bottom:28px!important}
+.chalkboard{min-height:720px!important;padding:24px 26px!important;overflow:hidden}
+.chalk-notes{position:relative!important;display:block!important;min-height:670px!important;padding:0!important}
+.chalk-note{position:absolute!important;left:var(--x,4%)!important;top:var(--y,4%)!important;width:20%!important;max-width:250px;min-width:150px!important;margin:0!important;padding:8px 10px!important;transform:rotate(var(--tilt,0deg)) scale(var(--scale,1))!important;border:0!important;color:var(--chalk,#f3efe4)!important;z-index:1}
+.chalk-note:hover{z-index:5}
+.chalk-note p{font-size:clamp(17px,1.45vw,23px)!important;line-height:1.2!important}
+.chalk-note footer{margin-top:6px!important;font-size:11px!important}
+.chalk-empty,.chalk-loading{position:absolute!important;inset:0!important;display:grid!important;place-items:center!important}
+
+@media(max-width:1100px){
+  .cloud-news-card{min-height:0!important}
+  .cloud-news-card .content-cover{min-height:0!important;aspect-ratio:16/9}
+}
+
+@media(max-width:800px){
+  .cloud-upload-preview{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .legacy-cloud-toolbar,.cloud-album-actions{align-items:stretch;flex-direction:column}
+  .legacy-cloud-toolbar .cloud-add-button,.cloud-album-actions .cloud-add-button{width:100%}
+  .chalkboard{min-height:1000px!important;padding:18px 12px!important}
+  .chalk-notes{min-height:950px!important}
+  .chalk-note{left:var(--mx,4%)!important;top:var(--my,4%)!important;width:42%!important;max-width:none;min-width:0!important;padding:6px 8px!important}
+  .chalk-note p{font-size:18px!important}
+}
+
+@media(max-width:520px){
+  .cloud-upload-preview{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cloud-news-card .event-card-copy{padding:18px!important}
+  .cloud-news-card h3{font-size:29px}
+  .family-board-section{padding:52px 4vw 68px!important}
+  .chalkboard{min-height:950px!important;border-width:8px!important;padding:14px 8px!important}
+  .chalk-notes{min-height:910px!important}
+  .chalk-note{width:43%!important}
+  .chalk-note p{font-size:16.5px!important}
+  .chalk-note footer{font-size:9.5px!important}
+}
