@@ -1,0 +1,19 @@
+Сюда загружайте личные фотографии в JPG с точными именами:
+vladimir.jpg
+olga.jpg
+asia.jpg
+masha.jpg
+fedya.jpg
+ksusha.jpg
+andrey.jpg
+misha.jpg
+dasha.jpg
+tatyana.jpg
+igor.jpg
+anya.jpg
+sonya.jpg
+dima.jpg
+alina.jpg
+maya.jpg
+sofia.jpg
+mia.jpg
