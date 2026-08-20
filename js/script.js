@@ -21,35 +21,83 @@ function twoDigits(number) {
   return String(number).padStart(2, '0');
 }
 
-function smartImage(folder, number, alt, className = '', onFinalError = null) {
+function smartImage(folder, number, alt, className = '', onFinalError = null, eager = false) {
   const img = document.createElement('img');
-  const base = `${folder}/${twoDigits(number)}`;
+
+  const base = ${folder}/${twoDigits(number)};
   const extensions = ['jpg', 'jpeg', 'png', 'webp'];
+
   let index = 0;
-  img.src = `${base}.${extensions[index]}`;
+
   img.alt = alt;
-  img.loading = 'lazy';
-  if (className) img.className = className;
-  img.onerror = () => {
-    index += 1;
-    if (index < extensions.length) img.src = `${base}.${extensions[index]}`;
-    else {
-      if (typeof onFinalError === 'function') onFinalError();
+  img.decoding = 'async';
+  img.loading = eager ? 'eager' : 'lazy';
+
+  if (eager) {
+    img.fetchPriority = 'high';
+  }
+
+  if (className) {
+    img.className = className;
+  }
+
+  /* Пока фото грузится, не показываем битый значок */
+  img.style.opacity = '0';
+  img.style.transition = 'opacity 0.2s ease';
+
+  img.addEventListener('load', () => {
+    img.style.opacity = '1';
+  });
+
+  function tryNext() {
+    if (index >= extensions.length) {
+      if (typeof onFinalError === 'function') {
+        onFinalError();
+      }
+
       img.remove();
+      return;
     }
-  };
+
+    img.src = ${base}.${extensions[index]};
+    index += 1;
+  }
+
+  img.addEventListener('error', tryNext);
+
+  tryNext();
+
   return img;
 }
 
 function coverImage(folder, alt) {
   const wrap = document.createElement('div');
   wrap.className = 'content-cover';
+
   const fallback = document.createElement('div');
   fallback.className = 'content-cover-fallback';
-  fallback.textContent = 'PHOTO';
+
+  /* Больше никакой надписи PHOTO и странных значков */
+  fallback.textContent = '';
+
   wrap.appendChild(fallback);
-  const img = smartImage(folder, 1, alt, 'content-cover-image');
+
+  /* Обложка загружается сразу, а не лениво */
+  const img = smartImage(
+    folder,
+    1,
+    alt,
+    'content-cover-image',
+    null,
+    true
+  );
+
+  img.addEventListener('load', () => {
+    fallback.remove();
+  });
+
   wrap.appendChild(img);
+
   return wrap;
 }
 
